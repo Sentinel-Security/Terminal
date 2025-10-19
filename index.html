@@ -1,44 +1,834 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>XS Web Terminal 2.0</title>
-<link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>root@terminal:~#</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000000;
+            font-family: 'Share Tech Mono', 'Courier New', monospace;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Efecto Matrix de fondo */
+        #matrix-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.03;
+            pointer-events: none;
+        }
+
+        /* Escanlines effect */
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 255, 0, 0.03) 0px,
+                rgba(0, 0, 0, 0.03) 1px,
+                rgba(0, 255, 0, 0.03) 2px
+            );
+            pointer-events: none;
+            z-index: 1;
+            animation: scanline 8s linear infinite;
+        }
+
+        @keyframes scanline {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(10px); }
+        }
+
+        /* CRT effect */
+        .crt {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+            background: radial-gradient(ellipse at center, transparent 0%, rgba(0, 0, 0, 0.3) 100%);
+        }
+
+        .terminal-container {
+            position: relative;
+            z-index: 3;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+        }
+
+        .terminal-header {
+            background: rgba(0, 20, 0, 0.95);
+            border: 1px solid #00ff00;
+            border-bottom: 2px solid #00ff00;
+            padding: 8px 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .terminal-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 0, 0.2), transparent);
+            animation: scan 3s infinite;
+        }
+
+        @keyframes scan {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .terminal-icon {
+            color: #00ff00;
+            font-weight: bold;
+            text-shadow: 0 0 10px #00ff00;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .terminal-user {
+            color: #00ff00;
+            font-weight: bold;
+            text-shadow: 0 0 5px #00ff00;
+            letter-spacing: 1px;
+        }
+
+        .terminal-path {
+            color: #00cc00;
+            margin-left: 5px;
+        }
+
+        .connection-status {
+            margin-left: auto;
+            font-size: 11px;
+            padding: 4px 10px;
+            border: 1px solid;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            animation: blink-status 1.5s infinite;
+        }
+
+        @keyframes blink-status {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .status-connected {
+            border-color: #00ff00;
+            color: #00ff00;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+
+        .status-disconnected {
+            border-color: #ff0000;
+            color: #ff0000;
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+        }
+
+        .ai-toggle {
+            background: rgba(0, 100, 255, 0.2);
+            color: #00ccff;
+            border: 1px solid #00ccff;
+            padding: 4px 12px;
+            border-radius: 3px;
+            font-size: 11px;
+            cursor: pointer;
+            font-family: 'Share Tech Mono', monospace;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-shadow: 0 0 5px #00ccff;
+        }
+
+        .ai-toggle:hover {
+            background: rgba(0, 100, 255, 0.4);
+            box-shadow: 0 0 15px rgba(0, 204, 255, 0.6);
+        }
+
+        .ai-toggle.active {
+            background: #00ccff;
+            color: #000;
+            box-shadow: 0 0 20px rgba(0, 204, 255, 0.8);
+            text-shadow: none;
+        }
+
+        #terminal {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.95);
+            border: 1px solid #00ff00;
+            color: #00ff00;
+            padding: 20px;
+            overflow-y: auto;
+            font-size: 14px;
+            line-height: 1.6;
+            text-shadow: 0 0 2px #00ff00;
+            box-shadow: inset 0 0 30px rgba(0, 255, 0, 0.1);
+            position: relative;
+        }
+
+        #terminal::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00ff00, transparent);
+            animation: top-scan 2s linear infinite;
+        }
+
+        @keyframes top-scan {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+
+        .terminal-line {
+            margin-bottom: 3px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            animation: flicker 0.15s;
+        }
+
+        @keyframes flicker {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        .boot-sequence {
+            color: #00ff00;
+            font-size: 12px;
+        }
+
+        .boot-ok {
+            color: #00ff00;
+            font-weight: bold;
+        }
+
+        .boot-fail {
+            color: #ff0000;
+            font-weight: bold;
+        }
+
+        .prompt {
+            color: #00ff00;
+            font-weight: bold;
+            text-shadow: 0 0 5px #00ff00;
+        }
+
+        .prompt-user {
+            color: #00ff00;
+        }
+
+        .prompt-at {
+            color: #00cc00;
+        }
+
+        .prompt-host {
+            color: #00ff00;
+        }
+
+        .prompt-path {
+            color: #0099ff;
+        }
+
+        .prompt-symbol {
+            color: #ff0000;
+            text-shadow: 0 0 5px #ff0000;
+        }
+
+        .error {
+            color: #ff0000;
+            text-shadow: 0 0 5px #ff0000;
+        }
+
+        .success {
+            color: #00ff00;
+            text-shadow: 0 0 5px #00ff00;
+        }
+
+        .info {
+            color: #00ccff;
+            text-shadow: 0 0 5px #00ccff;
+        }
+
+        .warning {
+            color: #ffff00;
+            text-shadow: 0 0 5px #ffff00;
+        }
+
+        .ai-response {
+            background: rgba(0, 50, 100, 0.3);
+            border-left: 3px solid #00ccff;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 0;
+            color: #00ccff;
+            box-shadow: 0 0 15px rgba(0, 204, 255, 0.2);
+            animation: ai-appear 0.3s;
+        }
+
+        @keyframes ai-appear {
+            0% { opacity: 0; transform: translateX(-10px); }
+            100% { opacity: 1; transform: translateX(0); }
+        }
+
+        .ai-header {
+            color: #00ccff;
+            font-weight: bold;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-shadow: 0 0 10px #00ccff;
+        }
+
+        .ai-thinking {
+            color: #0099cc;
+            font-style: italic;
+            animation: thinking 1.5s infinite;
+        }
+
+        @keyframes thinking {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .suggestion {
+            background: rgba(0, 255, 0, 0.1);
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-left: 3px solid #00ff00;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 13px;
+        }
+
+        .suggestion:hover {
+            background: rgba(0, 255, 0, 0.2);
+            border-left-width: 5px;
+            padding-left: 15px;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+            transform: translateX(5px);
+        }
+
+        .input-line {
+            display: flex;
+            align-items: center;
+            animation: input-appear 0.2s;
+        }
+
+        @keyframes input-appear {
+            0% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+
+        #command-input {
+            background: transparent;
+            border: none;
+            color: #00ff00;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 14px;
+            outline: none;
+            flex: 1;
+            margin-left: 8px;
+            text-shadow: 0 0 2px #00ff00;
+            caret-color: #00ff00;
+        }
+
+        #command-input::selection {
+            background: rgba(0, 255, 0, 0.3);
+        }
+
+        .cursor-blink {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background: #00ff00;
+            animation: cursor-blink 0.8s infinite;
+            box-shadow: 0 0 5px #00ff00;
+        }
+
+        @keyframes cursor-blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.5);
+            border-left: 1px solid #00ff00;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #00ff00;
+            box-shadow: 0 0 10px #00ff00;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00ff00;
+            box-shadow: 0 0 15px #00ff00;
+        }
+
+        .glitch {
+            animation: glitch 3s infinite;
+        }
+
+        @keyframes glitch {
+            0%, 90%, 100% { transform: translate(0); }
+            92% { transform: translate(-2px, 2px); }
+            94% { transform: translate(2px, -2px); }
+            96% { transform: translate(-2px, -2px); }
+            98% { transform: translate(2px, 2px); }
+        }
+
+        /* ASCII Art styling */
+        .ascii-art {
+            color: #00ff00;
+            font-size: 10px;
+            line-height: 1.2;
+            text-shadow: 0 0 5px #00ff00;
+            letter-spacing: 1px;
+        }
+    </style>
 </head>
 <body>
-<div class="container">
-  <div class="sidebar" id="sidebar">
-    <h3>Explorador de archivos</h3>
-    <ul id="file-tree"></ul>
-  </div>
-  <div class="main">
-    <div class="header">
-      <h1>XS Web Terminal</h1>
-      <div class="controls">
-        <label>GitHub token:
-          <input id="gh-token" type="password" placeholder="ghp_xxx">
-        </label>
-        <button id="save-gist">Guardar Gist</button>
-        <button id="load-gist">Cargar Gist</button>
-        <button id="export-json">Exportar JSON</button>
-        <button id="import-json">Importar JSON</button>
-        <button id="clear-local">Borrar JSON</button>
-      </div>
+    <canvas id="matrix-bg"></canvas>
+    <div class="scanlines"></div>
+    <div class="crt"></div>
+    
+    <div class="terminal-container">
+        <div class="terminal-header glitch">
+            <span class="terminal-icon">▶</span>
+            <span class="terminal-user">root@hackterm</span>
+            <span class="terminal-path">~</span>
+            <button class="ai-toggle" id="ai-toggle">⚡ AI: OFF</button>
+            <div class="connection-status status-disconnected" id="status">
+                ◉ OFFLINE
+            </div>
+        </div>
+
+        <div id="terminal"></div>
     </div>
 
-    <div class="terminal" id="terminal">
-      <div id="output"></div>
-      <div class="input-row">
-        <span id="prompt">xs@web:~$</span>
-        <input id="input" autocomplete="off" autofocus />
-      </div>
-    </div>
-  </div>
-</div>
+    <script>
+        // Matrix rain effect
+        const canvas = document.getElementById('matrix-bg');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
 
-<!-- Pyodide -->
-<script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
-<script src="terminal.js"></script>
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()';
+        const fontSize = 14;
+        const columns = canvas.width / fontSize;
+        const drops = Array(Math.floor(columns)).fill(1);
+
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#00ff00';
+            ctx.font = fontSize + 'px monospace';
+
+            for (let i = 0; i < drops.length; i++) {
+                const text = chars[Math.floor(Math.random() * chars.length)];
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+        }
+
+        setInterval(drawMatrix, 50);
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        // Terminal functionality
+        const BACKEND_URL = 'wss://tu-app.onrender.com';
+        
+        let ws;
+        let currentPath = '~';
+        let commandHistory = [];
+        let historyIndex = -1;
+        let aiEnabled = false;
+        let commandContext = [];
+        let hostname = 'hackterm';
+        let username = 'root';
+
+        const terminal = document.getElementById('terminal');
+        const statusEl = document.getElementById('status');
+        const aiToggle = document.getElementById('ai-toggle');
+
+        // Boot sequence
+        function bootSequence() {
+            const bootMessages = [
+                '╔══════════════════════════════════════════════════════════╗',
+                '║        LINUX TERMINAL v3.14.159 - SECURE SHELL         ║',
+                '╚══════════════════════════════════════════════════════════╝',
+                '',
+                '[ <span class="boot-ok">OK</span> ] Starting system logger daemon',
+                '[ <span class="boot-ok">OK</span> ] Initializing network interfaces',
+                '[ <span class="boot-ok">OK</span> ] Loading kernel modules',
+                '[ <span class="boot-ok">OK</span> ] Mounting filesystems',
+                '[ <span class="boot-ok">OK</span> ] Starting SSH daemon',
+                '[ <span class="boot-ok">OK</span> ] AI subsystem initialized',
+                '',
+                '<span class="info">System boot completed in 1.337 seconds</span>',
+                '<span class="warning">WARNING: You are in god mode. Be careful!</span>',
+                '',
+                '<span class="success">Type "help" for available commands</span>',
+                '<span class="success">Type "ai [question]" to interact with AI assistant</span>',
+                '─────────────────────────────────────────────────────────────',
+                ''
+            ];
+
+            let i = 0;
+            const bootInterval = setInterval(() => {
+                if (i < bootMessages.length) {
+                    const line = document.createElement('div');
+                    line.className = 'terminal-line boot-sequence';
+                    line.innerHTML = bootMessages[i];
+                    terminal.appendChild(line);
+                    terminal.scrollTop = terminal.scrollHeight;
+                    i++;
+                } else {
+                    clearInterval(bootInterval);
+                    connect();
+                }
+            }, 100);
+        }
+
+        aiToggle.addEventListener('click', () => {
+            aiEnabled = !aiEnabled;
+            if (aiEnabled) {
+                aiToggle.classList.add('active');
+                aiToggle.innerHTML = '⚡ AI: <strong>ON</strong>';
+                addLine('[<span class="success">✓</span>] AI assistant activated', 'success');
+            } else {
+                aiToggle.classList.remove('active');
+                aiToggle.innerHTML = '⚡ AI: OFF';
+                addLine('[<span class="info">•</span>] AI assistant deactivated', 'info');
+            }
+            createInputLine();
+        });
+
+        function connect() {
+            ws = new WebSocket(BACKEND_URL);
+
+            ws.onopen = () => {
+                updateStatus(true);
+                addLine('[<span class="success">✓</span>] Secure connection established', 'success');
+                createInputLine();
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleResponse(data);
+                } catch (e) {
+                    addLine(event.data, '');
+                }
+            };
+
+            ws.onerror = (error) => {
+                addLine('[<span class="error">✗</span>] Connection error: ' + error.message, 'error');
+                updateStatus(false);
+            };
+
+            ws.onclose = () => {
+                updateStatus(false);
+                addLine('[<span class="warning">!</span>] Connection lost. Reconnecting...', 'warning');
+                setTimeout(connect, 3000);
+            };
+        }
+
+        function updateStatus(connected) {
+            if (connected) {
+                statusEl.className = 'connection-status status-connected';
+                statusEl.textContent = '◉ ONLINE';
+            } else {
+                statusEl.className = 'connection-status status-disconnected';
+                statusEl.textContent = '◉ OFFLINE';
+            }
+        }
+
+        function handleResponse(data) {
+            if (data.type === 'output') {
+                addLine(data.data, '');
+                commandContext.push({ type: 'output', content: data.data });
+            } else if (data.type === 'error') {
+                addLine(data.data, 'error');
+                if (aiEnabled) {
+                    askAIForHelp(data.data);
+                }
+            } else if (data.type === 'path') {
+                currentPath = data.data;
+            }
+            createInputLine();
+        }
+
+        function addLine(text, className = '') {
+            const line = document.createElement('div');
+            line.className = 'terminal-line ' + className;
+            line.innerHTML = text;
+            terminal.appendChild(line);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function addAIResponse(content, thinking = false) {
+            const aiBox = document.createElement('div');
+            aiBox.className = 'ai-response';
+            
+            const header = document.createElement('div');
+            header.className = 'ai-header';
+            header.innerHTML = thinking 
+                ? '⚡ <span class="ai-thinking">PROCESSING...</span>'
+                : '⚡ AI ASSISTANT:';
+            
+            aiBox.appendChild(header);
+            
+            if (!thinking) {
+                const contentDiv = document.createElement('div');
+                contentDiv.innerHTML = content.replace(/\n/g, '<br>');
+                aiBox.appendChild(contentDiv);
+            }
+            
+            terminal.appendChild(aiBox);
+            terminal.scrollTop = terminal.scrollHeight;
+            
+            return aiBox;
+        }
+
+        function createInputLine() {
+            const oldInput = document.querySelector('.input-line');
+            if (oldInput) oldInput.remove();
+
+            const inputLine = document.createElement('div');
+            inputLine.className = 'input-line';
+            
+            const prompt = document.createElement('span');
+            prompt.className = 'prompt';
+            prompt.innerHTML = `<span class="prompt-user">${username}</span><span class="prompt-at">@</span><span class="prompt-host">${hostname}</span>:<span class="prompt-path">${currentPath}</span><span class="prompt-symbol">#</span> `;
+            
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.id = 'command-input';
+            input.autocomplete = 'off';
+            input.spellcheck = false;
+            
+            inputLine.appendChild(prompt);
+            inputLine.appendChild(input);
+            terminal.appendChild(inputLine);
+            
+            input.focus();
+            terminal.scrollTop = terminal.scrollHeight;
+
+            input.addEventListener('keydown', handleKeyDown);
+        }
+
+        function handleKeyDown(e) {
+            if (e.key === 'Enter') {
+                const command = e.target.value.trim();
+                if (command) {
+                    executeCommand(command);
+                    commandHistory.unshift(command);
+                    commandContext.push({ type: 'command', content: command });
+                    historyIndex = -1;
+                }
+                e.target.value = '';
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    e.target.value = commandHistory[historyIndex];
+                }
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    e.target.value = commandHistory[historyIndex];
+                } else {
+                    historyIndex = -1;
+                    e.target.value = '';
+                }
+            } else if (e.ctrlKey && e.key === 'c') {
+                e.preventDefault();
+                addLine('^C', 'warning');
+                createInputLine();
+            } else if (e.ctrlKey && e.key === 'l') {
+                e.preventDefault();
+                clearTerminal();
+            }
+        }
+
+        function executeCommand(command) {
+            const line = document.createElement('div');
+            line.className = 'terminal-line';
+            line.innerHTML = `<span class="prompt-user">${username}</span><span class="prompt-at">@</span><span class="prompt-host">${hostname}</span>:<span class="prompt-path">${currentPath}</span><span class="prompt-symbol">#</span> ${command}`;
+            terminal.appendChild(line);
+
+            if (command === 'clear') {
+                clearTerminal();
+                return;
+            }
+
+            if (command === 'help') {
+                showHelp();
+                return;
+            }
+
+            if (command.startsWith('ai ')) {
+                const question = command.substring(3).trim();
+                askAI(question);
+                return;
+            }
+
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'command', data: command }));
+            } else {
+                addLine('[<span class="error">✗</span>] ERROR: No connection to server', 'error');
+                createInputLine();
+            }
+        }
+
+        async function askAI(question) {
+            const thinkingBox = addAIResponse('', true);
+            
+            try {
+                const context = commandContext.slice(-5).map(item => 
+                    `${item.type}: ${item.content}`
+                ).join('\n');
+
+                const response = await fetch(BACKEND_URL.replace('wss://', 'https://').replace('ws://', 'http://') + '/ai', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        question: question,
+                        context: context,
+                        currentPath: currentPath
+                    })
+                });
+
+                const data = await response.json();
+                thinkingBox.remove();
+                addAIResponse(data.response);
+                
+                if (data.suggestedCommands && data.suggestedCommands.length > 0) {
+                    data.suggestedCommands.forEach(cmd => {
+                        const suggestion = document.createElement('div');
+                        suggestion.className = 'suggestion';
+                        suggestion.textContent = `▶ ${cmd}`;
+                        suggestion.onclick = () => {
+                            document.getElementById('command-input').value = cmd;
+                        };
+                        terminal.appendChild(suggestion);
+                    });
+                }
+                
+            } catch (error) {
+                thinkingBox.remove();
+                addLine('[<span class="error">✗</span>] AI Error: ' + error.message, 'error');
+            }
+            
+            createInputLine();
+        }
+
+        async function askAIForHelp(errorMessage) {
+            const lastCommand = commandContext.filter(c => c.type === 'command').slice(-1)[0];
+            if (!lastCommand) return;
+            const question = `Error executing '${lastCommand.content}': ${errorMessage}. How do I fix it?`;
+            await askAI(question);
+        }
+
+        function clearTerminal() {
+            terminal.innerHTML = '';
+            addLine('<span class="success">[✓] Screen cleared</span>', '');
+            createInputLine();
+        }
+
+        function showHelp() {
+            const helpText = `
+╔══════════════════════════════════════════════════════════╗
+║                   SYSTEM COMMANDS                        ║
+╚══════════════════════════════════════════════════════════╝
+
+<span class="success">BASIC COMMANDS:</span>
+  ls               List directory contents
+  pwd              Print working directory
+  cd [dir]         Change directory
+  cat [file]       Display file contents
+  mkdir [name]     Create directory
+  rm [file]        Remove file
+  clear            Clear terminal screen
+
+<span class="success">DEVELOPMENT:</span>
+  node [file]      Execute Node.js file
+  python [file]    Execute Python file
+  git [cmd]        Git version control
+  npm [cmd]        Node package manager
+
+<span class="success">AI ASSISTANT:</span>
+  ai [question]    Ask AI anything
+  ai suggest       Get command suggestions
+  ⚡ AI Button     Toggle automatic help
+
+<span class="success">SHORTCUTS:</span>
+  Ctrl+C           Cancel current command
+  Ctrl+L           Clear screen
+  ↑/↓              Navigate command history
+
+╔══════════════════════════════════════════════════════════╗
+║  Type any command to execute on the remote server       ║
+╚══════════════════════════════════════════════════════════╝
+            `;
+            addLine(helpText, 'info');
+            createInputLine();
+        }
+
+        document.addEventListener('click', () => {
+            const input = document.getElementById('command-input');
+            if (input) input.focus();
+        });
+
+        bootSequence();
+    </script>
 </body>
-</html>
+  </html>
