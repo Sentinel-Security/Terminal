@@ -1,23 +1,23 @@
-here<!doctype html>
+<!doctype html>
 <html lang="es">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>XS Web Terminal — Con JSON por usuario y git clone real</title>
+<title>XS Web Terminal — Python + pip (Pyodide) + JSON por usuario</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="header">
     <h1>XS Web Terminal</h1>
     <div class="controls">
-      <label title="Guardar/recuperar en un Gist (opcional)">
-        GitHub token (opcional):
-        <input id="gh-token" type="password" placeholder="ghp_xxx (no obligatorio)">
+      <label>GitHub token (opcional):
+        <input id="gh-token" type="password" placeholder="ghp_xxx (opcional)">
       </label>
       <button id="save-gist">Guardar JSON en Gist</button>
       <button id="load-gist">Cargar desde Gist</button>
       <button id="export-json">Exportar JSON</button>
       <button id="import-json">Importar JSON</button>
+      <button id="clear-local">Borrar JSON local</button>
     </div>
   </div>
 
@@ -28,6 +28,9 @@ here<!doctype html>
       <input id="input" autocomplete="off" autofocus />
     </div>
   </div>
+
+  <!-- Pyodide: runtime Python en el navegador -->
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
 
   <script src="terminal.js"></script>
 </body>
